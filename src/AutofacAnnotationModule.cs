@@ -7,8 +7,6 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Autofac.Annotation.Config;
 using Autofac.Annotation.Util;
-using Autofac.AspectIntercepter;
-using Autofac.AspectIntercepter.Pointcut;
 using Autofac.Builder;
 using Autofac.Core;
 using Autofac.Core.Lifetime;
@@ -16,7 +14,6 @@ using Autofac.Core.Registration;
 using Autofac.Core.Resolving.Pipeline;
 using Autofac.Features.AttributeFilters;
 using Autofac.Features.Variance;
-using Castle.DynamicProxy;
 using Microsoft.Extensions.Configuration;
 
 #pragma warning disable CS0618

@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using Autofac.Annotation.Condition;
 using Autofac.Annotation.Config;
 using Autofac.Annotation.Util;
-using Autofac.AspectIntercepter.Advice;
 using Autofac.Builder;
 using Autofac.Core;
 using Autofac.Core.Lifetime;

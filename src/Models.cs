@@ -1,11 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
-using Autofac.Annotation.Util;
-using Autofac.AspectIntercepter.Advice;
-using Autofac.AspectIntercepter.Pointcut;
 using Microsoft.Extensions.Configuration;
 
 namespace Autofac.Annotation

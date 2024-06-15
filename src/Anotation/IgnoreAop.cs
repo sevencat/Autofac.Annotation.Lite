@@ -10,9 +10,6 @@
 namespace Autofac.Annotation
 {
     using System;
-    using System.Collections.Generic;
-    using System.Linq;
-    using System.Text;
 
     /// <summary>
     ///  打了此注解代表方法不需要增强，适用于以下场景

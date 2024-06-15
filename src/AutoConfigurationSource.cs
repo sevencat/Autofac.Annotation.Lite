@@ -6,7 +6,6 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Autofac.Builder;
 using Autofac.Core.Resolving.Pipeline;
-using Castle.DynamicProxy;
 
 namespace Autofac.Annotation
 {

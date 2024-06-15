@@ -1,4 +1,3 @@
-using System;
 using Autofac.Annotation.Util;
 using Autofac.Core.Registration;
 
