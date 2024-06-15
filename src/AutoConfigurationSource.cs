@@ -1,9 +1,9 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using Autofac.Annotation.Util;
 using Autofac.Builder;
 using Autofac.Core.Resolving.Pipeline;
 
@@ -150,7 +150,7 @@ namespace Autofac.Annotation
         /// <param name="pointCutAnnotation"></param>
         /// <returns></returns>
         public static object InvokeInstanceMethod(object instance, MethodInfo methodInfo, ParameterInfo[] parameters, IComponentContext context,
-            AspectContext invocation = null, AspectDelegate _next = null, object returnValue = null, string returnParam = null,
+            object returnValue = null, string returnParam = null,
             Attribute injectAnotation = null, Attribute pointCutAnnotation = null)
         {
             if (instance.GetType().IsGenericType && typeof(Lazy<>) == instance.GetType().GetGenericTypeDefinition())
@@ -168,17 +168,6 @@ namespace Autofac.Annotation
             List<object> parameterObj = new List<object>();
             foreach (var parameter in parameters)
             {
-                if (invocation != null && parameter.ParameterType == typeof(AspectContext))
-                {
-                    parameterObj.Add(invocation);
-                    continue;
-                }
-
-                if (_next != null && parameter.ParameterType == typeof(AspectDelegate))
-                {
-                    parameterObj.Add(_next);
-                    continue;
-                }
 
                 if (injectAnotation != null && (parameter.ParameterType == injectAnotation.GetType() ||
                                                 (typeof(Attribute).IsAssignableFrom(parameter.ParameterType) &&
@@ -251,7 +240,7 @@ namespace Autofac.Annotation
 
 
         public static object InvokeInstanceMethod(object instance, MethodInfo methodInfo, IComponentContext context,
-            AspectContext invocation = null, AspectDelegate _next = null, object returnValue = null, string returnParam = null,
+             object returnValue = null, string returnParam = null,
             Attribute injectAnotation = null)
         {
             try
@@ -267,17 +256,6 @@ namespace Autofac.Annotation
                 List<object> parameterObj = new List<object>();
                 foreach (var parameter in parameters)
                 {
-                    if (invocation != null && parameter.ParameterType == typeof(AspectContext))
-                    {
-                        parameterObj.Add(invocation);
-                        continue;
-                    }
-
-                    if (_next != null && parameter.ParameterType == typeof(AspectDelegate))
-                    {
-                        parameterObj.Add(_next);
-                        continue;
-                    }
 
                     if (injectAnotation != null && parameter.ParameterType == injectAnotation.GetType())
                     {
@@ -409,72 +387,6 @@ namespace Autofac.Annotation
                 throw new InvalidOperationException(
                     $"The Configuration class `{autoConfigurationDetail.AutoConfigurationClassType.FullName}` method `{methodInfo.Name}` invoke fail!", e);
             }
-        }
-    }
-
-    /// <summary>
-    /// AutoConfiguration的类代理
-    /// </summary>
-    [Component(typeof(AutoConfigurationIntercept), NotUseProxy = true)]
-    public class AutoConfigurationIntercept : AsyncInterceptor
-    {
-#pragma warning disable 649
-        [Autowired] private ComponentModelCacheSingleton cache;
-#pragma warning restore 649
-
-        /// <summary>
-        /// 单例对象缓存
-        /// </summary>
-        private ConcurrentDictionary<MethodInfo, object> _instanceCache = new ConcurrentDictionary<MethodInfo, object>();
-
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="invocation"></param>
-        /// <exception cref="NotImplementedException"></exception>
-        protected override void Intercept(IInvocation invocation)
-        {
-            cache.ComponentModelCache.TryGetValue(invocation.MethodInvocationTarget.ReturnType, out var componentModel);
-            if (invocation.MethodInvocationTarget.ReturnType == typeof(void))
-            {
-                invocation.Proceed();
-                return;
-            }
-
-
-            //单例的
-            if (componentModel?.AutofacScope == AutofacScope.SingleInstance && _instanceCache.TryGetValue(invocation.Method, out var instance))
-            {
-                invocation.ReturnValue = instance;
-                return;
-            }
-
-            invocation.Proceed();
-
-            _instanceCache.TryAdd(invocation.Method, invocation.ReturnValue);
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="invocation"></param>
-        /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
-        protected override async ValueTask InterceptAsync(IAsyncInvocation invocation)
-        {
-            cache.ComponentModelCache.TryGetValue(invocation.TargetMethod.ReturnType, out var componentModel);
-
-            //单例的
-            if (componentModel?.AutofacScope == AutofacScope.SingleInstance && _instanceCache.TryGetValue(invocation.TargetMethod, out var instance))
-            {
-                invocation.Result = instance;
-                return;
-            }
-
-            await invocation.ProceedAsync();
-
-            _instanceCache.TryAdd(invocation.TargetMethod, invocation.Result);
         }
     }
 
