@@ -38,33 +38,6 @@ namespace Autofac.Annotation
         public Ownership Ownership { get; set; }
 
         /// <summary>
-        ///     指定拦截器类型，默认为class类型拦截器，被拦截的方法必须指定为virtual
-        ///     如果指定了的话就无法被PointCut或者Aspect拦截
-        /// </summary>
-        public Type Interceptor { get; set; }
-
-        /// <summary>
-        ///     拦截器类型
-        /// </summary>
-        public InterceptorType InterceptorType { get; set; } = InterceptorType.Class;
-
-        /// <summary>
-        ///     开启拦截器代理 从4.0.7版本开始不需要显示设定
-        /// </summary>
-        [Obsolete("auto detect this from version 4.0.7")]
-        public bool EnableAspect { get; set; }
-
-        /// <summary>
-        /// 是否Pointcut要拦截继承(比如抽象父类)的方法 默认为true
-        /// </summary>
-        public bool EnablePointcutInherited { get; set; } = true;
-
-        /// <summary>
-        ///     如果同一个类型的拦截器有多个 可以指定Key
-        /// </summary>
-        public string InterceptorKey { get; set; }
-
-        /// <summary>
         ///     被创建后执行的方法
         /// </summary>
         public string InitMethod { get; set; }
@@ -136,10 +109,6 @@ namespace Autofac.Annotation
         /// </summary>
         public string Key { get; }
 
-        /// <summary>
-        ///     是否不允许被代理 比如Pointcut的类就不能被代理
-        /// </summary>
-        public bool NotUseProxy { get; set; }
 
 
         /// <summary>

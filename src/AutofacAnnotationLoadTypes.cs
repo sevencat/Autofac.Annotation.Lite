@@ -243,62 +243,7 @@ namespace Autofac.Annotation
         }
 
 
-        /// <summary>
-        ///     自动发现Aspect标签
-        /// </summary>
-        /// <param name="aspectClass"></param>
-        private static bool NeedWarpForAspect(ComponentModel aspectClass)
-        {
-            if (aspectClass.CurrentType.IsInterface || aspectClass.CurrentType.IsAbstract) return false;
-            if (aspectClass.AspectAttributeCache.Any()) return true;
-
-            //class上的标签（包括父类，接口上的）也是包含继承关系
-            var allAttributesinClass = from item in aspectClass.CurrentClassTypeAttributes
-                let att = item as AspectInvokeAttribute
-                where att != null
-                select new { IsClass = true, Attribute = att, Index = att.OrderIndex };
-
-            //class下的方法包含继承关系
-            var myArrayMethodInfo = aspectClass.CurrentType.GetAllInstanceMethod();
-            Parallel.ForEach(myArrayMethodInfo, method =>
-            {
-                var allAttributes = allAttributesinClass.Concat(method
-                    .GetCustomAttributes(typeof(AspectInvokeAttribute), true).OfType<AspectInvokeAttribute>()
-                    .Select(r => new { IsClass = false, Attribute = r, Index = r.OrderIndex }));
-
-                var allAttributesInculdeFromInterface = allAttributes.Concat(
-                    from a in method.GetCustomAttributesByImplementedInterfaces<AspectInvokeAttribute>()
-                    select new { IsClass = false, Attribute = a, Index = a.OrderIndex });
-
-                //如果class上也打了 method上也打了 优先用method上的
-                //如果method上打了 父类的method或者接口方法上打了 优先用本类的method上的
-                var attributes = allAttributesInculdeFromInterface
-                    .OrderBy(r => r.IsClass).ThenByDescending(r => r.Index)
-                    .GroupBy(r => r.Attribute.GetType().FullName)
-                    .Select(r => r.First().Attribute).ToList();
-
-                // 看是否有设置了要Ignore的
-                var ignore = method.GetCustomAttribute<IgnoreAop>();
-                if (ignore != null && (IgnoreFlags.Advice & ignore.IgnoreFlags) != 0)
-                {
-                    if (ignore.Target == null || !ignore.Target.Any())
-                    {
-                        attributes = new List<AspectInvokeAttribute>(1);
-                    }
-                    else if (attributes.Any())
-                    {
-                        attributes = attributes.Where(r => !ignore.Target.Contains(r.GetType())).ToList();
-                    }
-                }
-
-                if (attributes.Any()) aspectClass.AspectAttributeCache.TryAdd(method, attributes);
-            });
-
-            if (!aspectClass.AspectAttributeCache.Any()) return false;
-            aspectClass.EnableAspect = true;
-            return true;
-        }
-
+        
         /**
          * 遍历所有的dll 拿到
          * 所有的AutoConfiguration标签的类
@@ -326,17 +271,7 @@ namespace Autofac.Annotation
                     var orderAttr = type.GetCustomAttribute<Order>();
 
 
-                    var pointcutAttr = type.GetCustomAttributes<Pointcut>().ToList();
-                    if (pointcutAttr.Any())
-                    {
-                        enumTypeAgg.PointCutTypeDefs.Add(new TypeDef<List<Pointcut>>
-                        {
-                            OrderIndex = orderAttr?.Index ?? 0,
-                            Type = type,
-                            Bean = pointcutAttr.Where(r => !string.IsNullOrEmpty(r.Class) || r.AttributeType != null)
-                                .ToList()
-                        });
-                    }
+                    
 
                     var configBean = type.GetCustomAttribute<AutoConfiguration>();
                     if (configBean != null)

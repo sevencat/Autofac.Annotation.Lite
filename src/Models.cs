@@ -113,10 +113,6 @@ namespace Autofac.Annotation
 		/// </summary>
 		public int OrderIndex { get; set; }
 
-		/// <summary>
-		///     不允许被切面扫描到
-		/// </summary>
-		internal bool NotUseProxy { get; set; }
 
 		/// <summary>
 		///     是否要注册为后置处理器
@@ -163,22 +159,6 @@ namespace Autofac.Annotation
 		internal DependsOn DependsOn { get; set; }
 
 		#endregion
-
-
-		/// <summary>
-		/// 是否Pointcut要拦截继承(比如抽象父类)的方法 默认为true
-		/// </summary>
-		public bool EnablePointcutInherited { get; set; } = true;
-
-		/// <summary>
-		/// 针对泛型 在resovle的时候动态注册的时候 检查哪些method需要pointcut
-		/// </summary>
-		internal readonly ConcurrentBag<string> DynamicGenricMethodsNeedPointcuts = new ConcurrentBag<string>();
-
-		/// <summary>
-		/// 针对飞泛型 在resovle的时候动态注册的时候 检查哪些method需要pointcut
-		/// </summary>
-		internal readonly ConcurrentBag<ObjectKey> MethodsNeedPointcuts = new ConcurrentBag<ObjectKey>();
 	}
 
 	/// <summary>

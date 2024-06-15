@@ -245,9 +245,6 @@ namespace Autofac.Annotation
 
             var currentType = registration.Activator.LimitType;
 
-            if (typeof(IProxyTargetAccessor).IsAssignableFrom(currentType) && currentType.BaseType != null)
-                currentType = currentType.BaseType;
-
             //过滤掉框架类
             if (currentType.Assembly == GetType().Assembly ||
                 currentType.Assembly == typeof(LifetimeScope).Assembly) return;
@@ -315,13 +312,10 @@ namespace Autofac.Annotation
             });
             builder.Properties[_DEFAULT_SCOPE] = DefaultAutofacScope;
             builder.Properties[_ENUM_TYPE_DEFS] = getAllTypeDefs();
-
-            //解析程序集PointCut标签类和方法
-            var pointCutCfg = GetPointCutConfiguration(builder);
+            
             //解析程序集拿到打了pointcut的类 打了Compoment的类 解析Import的类
-            var componetList = GetAllComponent(builder, pointCutCfg);
+            var componetList = GetAllComponent(builder);
             var cache = builder.Properties[_ALL_COMPOMENT] as ComponentModelCacheSingleton;
-            if (cache != null) cache.PointCutConfigurationList = pointCutCfg;
             foreach (var component in componetList)
             {
                 //Conditional
@@ -607,8 +601,7 @@ namespace Autofac.Annotation
         ///     解析Import的类
         /// </summary>
         /// <returns></returns>
-        private List<ComponentModel> GetAllComponent(ContainerBuilder builder,
-            PointCutConfigurationList pointCutConfigurationList)
+        private List<ComponentModel> GetAllComponent(ContainerBuilder builder)
         {
             if (_assemblyList == null || _assemblyList.Count < 1)
                 throw new ArgumentNullException(nameof(_assemblyList));
@@ -625,27 +618,6 @@ namespace Autofac.Annotation
                 if (enumTypeAgg == null)
                 {
                     throw new ArgumentNullException(nameof(Component));
-                }
-
-                //获取打了PointCut的标签的class注册到DI
-                foreach (var pointcutConfig in pointCutConfigurationList.PointcutConfigurationInfoList
-                             .GroupBy(r => r.PointClass)
-                             .ToDictionary(r => r.Key,
-                                 y => y.ToList()))
-                {
-                    var pointCutAtt = pointcutConfig.Value.First();
-                    enumTypeAgg.BeanDefinationDefs.Add(new BeanDefination
-                    {
-                        Type = pointcutConfig.Key,
-                        Bean = new Component(pointcutConfig.Key)
-                        {
-                            AutofacScope = AutofacScope.SingleInstance,
-                            InitMethod = pointCutAtt.Pointcut.InitMethod,
-                            DestroyMethod = pointCutAtt.Pointcut.DestroyMethod,
-                            RegisterType = RegisterType.PointCut
-                        },
-                        OrderIndex = -1147483648
-                    });
                 }
 
                 //从assembly里面解析打了Compoment标签的 或者 自定义设置了 ComponentDetector的采用ComponentDetector的方式去解析生产的Compoment
@@ -825,18 +797,14 @@ namespace Autofac.Annotation
                         InjectProperties = true,
                         InjectPropertyType = InjectPropertyType.Autowired,
                         AutoActivate = true,
-                        EnableAspect = true,
-                        Interceptor = typeof(AutoConfigurationIntercept),
                         AutofacScope = AutofacScope.SingleInstance,
-                        InterceptorType = InterceptorType.Class,
                         InitMethod = configuration.AutofacConfiguration.InitMethod,
                         DestroyMethod = configuration.AutofacConfiguration.DestroyMethod,
                         RegisterType = RegisterType.AutoConfiguration
                     };
                     cache?.ComponentModelCache.TryAdd(configuration.Type, compoment);
                     //注册为代理类
-                    var rb = builder.RegisterType(configuration.Type).EnableClassInterceptors()
-                        .InterceptedBy(typeof(AutoConfigurationIntercept))
+                    var rb = builder.RegisterType(configuration.Type)
                         .SingleInstance().WithMetadata(_AUTOFAC_SPRING, true); //注册为单例模式
                     list.AutoConfigurationDetailList.Add(bean);
 
@@ -896,15 +864,9 @@ namespace Autofac.Annotation
                 InjectProperties = bean.InjectProperties,
                 InjectPropertyType = bean.InjectPropertyType,
                 Ownership = bean.Ownership,
-                Interceptor = bean.Interceptor,
-                InterceptorKey = bean.InterceptorKey,
-                InterceptorType = bean.InterceptorType,
                 InitMethod = bean.InitMethod,
                 DestroyMethod = bean.DestroyMethod,
                 OrderIndex = bean.OrderIndex,
-                NotUseProxy = bean.NotUseProxy,
-                EnableAspect = bean.EnableAspect,
-                EnablePointcutInherited = bean.EnablePointcutInherited,
                 IsBenPostProcessor = typeof(BeanPostProcessor).IsAssignableFrom(currentType),
                 CurrentClassTypeAttributes =
                     currentType.GetCustomAttributesIncludingBaseInterfaces<Attribute>().ToList(),
@@ -922,16 +884,8 @@ namespace Autofac.Annotation
             if (result.IsBenPostProcessor)
             {
                 result.AutoActivate = false;
-                result.Interceptor = null;
                 result.AutofacScope = AutofacScope.SingleInstance;
                 result.OrderIndex = int.MinValue;
-                result.NotUseProxy = true;
-                result.EnableAspect = false;
-            }
-            else
-            {
-                //自动识别EnableAspect
-                NeedWarpForAspect(result);
             }
 
             #region 解析注册对应的类的列表
@@ -957,13 +911,6 @@ namespace Autofac.Annotation
 
                     if (bean.Services == null || !bean.Services.Contains(iInterface))
                     {
-                        if (bean.Interceptor != null)
-                        {
-                            //有配置接口拦截器 但是当前不是注册成接口
-                            if (bean.InterceptorType == InterceptorType.Interface && !iInterface.IsInterface) continue;
-                            //有配置class拦截器 但是当前不是注册成class
-                            if (bean.InterceptorType == InterceptorType.Class && !iInterface.IsClass) continue;
-                        }
 
                         //如果父类直接是接口 也没有特别指定 Service 或者 Services集合
                         re.Add(new ComponentServiceModel
@@ -1209,7 +1156,6 @@ namespace Autofac.Annotation
                 AutoActivate = false,
                 CurrentType = currentType,
                 InjectProperties = true,
-                InterceptorType = InterceptorType.Class,
                 InjectPropertyType = InjectPropertyType.Autowired,
                 IsBenPostProcessor = typeof(BeanPostProcessor).IsAssignableFrom(currentType),
                 CurrentClassTypeAttributes =
@@ -1219,26 +1165,11 @@ namespace Autofac.Annotation
             component.MetaSourceList = new List<MetaSourceData>();
             EnumerateMetaSourceAttributes(component.CurrentType, component.MetaSourceList);
 
-            var needPointCut = NeedWarpForPointcut(component, allCompoment.PointCutConfigurationList, isGeneric);
-            var neewAspect = NeedWarpForAspect(component);
-            var needProxy = neewAspect || needPointCut;
-            if (isGeneric || !needProxy)
-            {
-                RegisterBeforeBeanPostProcessor(component, registration);
-                RegisterComponentValues(component, registration);
-                SetIntercept(component, registration, needPointCut);
-                SetInjectProperties(component, registration);
-                RegisterAfterBeanPostProcessor(component, registration);
-                return (component, null);
-            }
-
-            var builder = RegistrationBuilder.ForType(component.CurrentType);
-            RegisterBeforeBeanPostProcessor(component, builder);
-            RegisterComponentValues(component, builder);
-            SetIntercept(component, builder, needPointCut);
-            SetInjectProperties(component, builder);
-            RegisterAfterBeanPostProcessor(component, builder);
-            return (component, builder);
+            RegisterBeforeBeanPostProcessor(component, registration);
+            RegisterComponentValues(component, registration);
+            SetInjectProperties(component, registration);
+            RegisterAfterBeanPostProcessor(component, registration);
+            return (component, null);
         }
 
 
@@ -1393,11 +1324,6 @@ namespace Autofac.Annotation
             if (instance == null) return;
             var instanceType = instance.GetType();
             var RealInstance = instance;
-            if (ProxyUtil.IsProxy(instance))
-            {
-                RealInstance = ProxyUtil.GetUnproxiedInstance(instance);
-                instanceType = ProxyUtil.GetUnproxiedType(instance);
-            }
 
             if (RealInstance == null) return;
             var componentModelCacheSingleton = context.Resolve<ComponentModelCacheSingleton>();
@@ -1586,13 +1512,7 @@ namespace Autofac.Annotation
             if (instance == null) return;
             var instanceType = instance.GetType();
             var RealInstance = instance;
-            if (ProxyUtil.IsProxy(instance))
-            {
-                RealInstance = ProxyUtil.GetUnproxiedInstance(instance);
-                instanceType = ProxyUtil.GetUnproxiedType(instance);
-            }
 
-            if (RealInstance == null) return;
             var componentModelCacheSingleton = e.Resolve<ComponentModelCacheSingleton>();
             if (!componentModelCacheSingleton.ComponentModelCache.TryGetValue(instanceType, out var model))
             {
